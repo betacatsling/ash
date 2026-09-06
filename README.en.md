@@ -8,6 +8,7 @@ Local projects · SSH workspaces · Persistent sessions · Split terminals
 
 [![macOS](https://img.shields.io/badge/macOS-15%2B-343A35?style=flat-square)](#install)
 [![Preview](https://img.shields.io/badge/version-0.1.2_preview-94633F?style=flat-square)](https://github.com/betacatsling/ash/releases/tag/v0.1.2)
+[![CI](https://github.com/betacatsling/ash/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/betacatsling/ash/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-58725A?style=flat-square)](LICENSE)
 
 [Download](https://github.com/betacatsling/ash/releases/tag/v0.1.2) · [简体中文](README.md) · [Report an issue](https://github.com/betacatsling/ash/issues)
