@@ -1,0 +1,33 @@
+# Build products and local toolchains
+.build/
+.swiftpm/
+.tools/
+runtime/target/
+dist/
+
+# Agent sessions and personal editor state
+.pi/
+.codex/
+.claude/
+.idea/
+.vscode/
+
+# Local configuration, credentials, and runtime data
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+*.log
+
+# macOS and Python caches
+.DS_Store
+__pycache__/
+*.py[cod]

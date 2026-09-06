@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  runtime:
+    name: Rust runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - run: cargo test --locked --manifest-path runtime/Cargo.toml
+
+  macos:
+    name: macOS app and model checks
+    runs-on: macos-15
+    timeout-minutes: 25
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build app
+        run: swift build
+      - name: XCTest checks
+        run: swift test
+      - name: Standalone model checks
+        run: |
+          for check in ModelChecks TerminalEnvironmentChecks ChecklistChecks SidePanelChecks DirectorySuggestionsChecks; do
+            scripts/swift-check.sh "$check"
+            ".build/$check"
+          done
