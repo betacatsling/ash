@@ -37,13 +37,15 @@ struct TerminalShortcut: Codable, Equatable {
         var result = saved.filter { ["previous", "next"].contains($0.key) }
         // Old individually recorded nonnumeric keys cannot represent a numbered family.
         let candidate = saved["numbered"] ?? saved["terminal1"] ?? .init(key: "1")
-        let numbered = candidate.isValid && (1...9).contains(Int(candidate.key) ?? 0)
+        let numbered =
+            candidate.isValid && (1...9).contains(Int(candidate.key) ?? 0)
             ? candidate.withKey("1") : .init(key: "1")
         result["numbered"] = numbered
         for action in [TerminalShortcutAction.previous, .next] {
             if let shortcut = result[action.rawValue],
-               !shortcut.isValid || shortcut.reservedAction != nil
-                || (1...9).contains(where: { numbered.withKey(String($0)) == shortcut }) {
+                !shortcut.isValid || shortcut.reservedAction != nil
+                    || (1...9).contains(where: { numbered.withKey(String($0)) == shortcut })
+            {
                 result[action.rawValue] = nil
             }
         }
@@ -78,16 +80,20 @@ struct TerminalShortcut: Codable, Equatable {
         return (control ? "⌃" : "") + (option ? "⌥" : "") + (shift ? "⇧" : "") + (command ? "⌘" : "") + symbol
     }
     var isValid: Bool {
-        (command || control) && (["left", "right", "up", "down"].contains(key)
-            || (key.count == 1 && key.unicodeScalars.allSatisfy { (33...126).contains($0.value) }))
+        (command || control)
+            && (["left", "right", "up", "down"].contains(key)
+                || (key.count == 1 && key.unicodeScalars.allSatisfy { (33...126).contains($0.value) }))
     }
     static func from(_ event: NSEvent) -> TerminalShortcut? {
         let arrows: [UInt16: String] = [123: "left", 124: "right", 125: "down", 126: "up"]
         // Strip Option and Shift so symbols such as ⌥2 and ⇧1 use the same key as the menu.
-        guard let key = arrows[event.keyCode] ?? event.characters(byApplyingModifiers: [])?.lowercased() else { return nil }
+        guard let key = arrows[event.keyCode] ?? event.characters(byApplyingModifiers: [])?.lowercased() else {
+            return nil
+        }
         let flags = event.modifierFlags
-        let shortcut = TerminalShortcut(key: key, command: flags.contains(.command), option: flags.contains(.option),
-                                        control: flags.contains(.control), shift: flags.contains(.shift))
+        let shortcut = TerminalShortcut(
+            key: key, command: flags.contains(.command), option: flags.contains(.option),
+            control: flags.contains(.control), shift: flags.contains(.shift))
         return shortcut.isValid ? shortcut : nil
     }
 
@@ -99,7 +105,7 @@ struct TerminalShortcut: Codable, Equatable {
             (.init(key: "d"), "分屏"), (.init(key: "i", option: true), "右边栏"),
             (.init(key: "h", shift: true), "管理主机"), (.init(key: "+"), "放大字体"),
             (.init(key: "=", shift: true), "放大字体"), (.init(key: "-"), "缩小字体"),
-            (.init(key: "q"), "退出"), (.init(key: "w"), "关闭当前终端"),
+            (.init(key: "q"), "退出"), (.init(key: "w"), "关闭当前标签页"),
             (.init(key: "m"), "最小化"), (.init(key: "h"), "隐藏应用"),
             (.init(key: "h", option: true), "隐藏其他应用"),
             (.init(key: "c"), "复制"), (.init(key: "v"), "粘贴"), (.init(key: "x"), "剪切"),

@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         .defaultSize(width: 1320, height: 820)
         .windowStyle(.hiddenTitleBar)
+        .windowBackgroundDragBehavior(.disabled)
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("打开文件夹…") { store.chooseFolder() }.keyboardShortcut("o")
@@ -34,9 +35,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             // Replace the native Close command so ⌘W never falls back to closing the window.
             CommandGroup(replacing: .saveItem) {
-                Button("关闭当前终端") {
-                    guard store.canCloseSelectedTerminal, let run = store.selectedRun else { return }
-                    Task { await store.closeTerminal(run) }
+                Button("关闭当前标签页") {
+                    guard store.canCloseSelectedTerminal, let tab = store.selectedTerminalTab else { return }
+                    Task { await store.closeTerminalTab(tab) }
                 }
                 .keyboardShortcut("w", modifiers: [.command])
                 .disabled(!store.canCloseSelectedTerminal)

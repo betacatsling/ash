@@ -26,52 +26,16 @@ struct Workspace: Codable, Identifiable, Hashable {
     var secondaryRunID: String? = nil
     var archived: Bool? = nil
     var syncPending: Bool? = nil
-    // nil migrates the original two-pane layout; an explicit array is ordered left to right.
+    // Legacy-compatible pane order; terminalLayout additionally preserves local split directions and proportions.
     var paneRunIDs: [String]? = nil
+    var terminalLayout: TerminalLayout? = nil
+    var terminalGroups: [TerminalTabGroup]? = nil
 
-    func visibleRunIDs(available: [String]) -> [String] {
-        let selected = available.first { $0 == selectedRunID } ?? available.last
-        let candidates =
-            paneRunIDs ?? (split ? [selected, secondaryRunID].compactMap { $0 } : [selected].compactMap { $0 })
-        var seen = Set<String>()
-        let visible = candidates.filter { available.contains($0) && seen.insert($0).inserted }
-        return visible.isEmpty ? [selected].compactMap { $0 } : visible
-    }
-
-    mutating func setPanes(_ ids: [String], focused: String?) {
-        paneRunIDs = ids
-        selectedRunID = focused.flatMap { ids.contains($0) ? $0 : nil } ?? ids.first
-        split = ids.count > 1
-        secondaryRunID = ids.first { $0 != selectedRunID }
-    }
-
-    mutating func selectTerminal(_ id: String, available: [String]) {
-        guard available.contains(id) else { return }
-        var panes = visibleRunIDs(available: available)
-        if !panes.contains(id) {
-            let index = panes.firstIndex(of: selectedRunID ?? "") ?? 0
-            if panes.isEmpty { panes = [id] } else { panes[index] = id }
-        }
-        setPanes(panes, focused: id)
-    }
-
-    @discardableResult
-    mutating func moveTerminal(_ source: String, beside target: String, side: TerminalDropSide, available: [String])
-        -> Bool
-    {
-        var panes = visibleRunIDs(available: available)
-        guard source != target, available.contains(source), panes.contains(target) else { return false }
-        panes.removeAll { $0 == source }
-        let index = panes.firstIndex(of: target)!
-        panes.insert(source, at: index + (side == .right ? 1 : 0))
-        setPanes(panes, focused: source)
-        return true
-    }
 }
-enum TerminalDropSide { case left, right }
 struct TerminalDrag: Codable {
     let workspaceID: String
     let runID: String
+    var tabID: String? = nil
 }
 struct Agent: Identifiable, Hashable {
     var id: String

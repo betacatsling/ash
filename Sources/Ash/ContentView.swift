@@ -10,6 +10,9 @@ struct ContentView: View {
             if sidebarVisibility != .detailOnly {
                 SidebarView { sidebarVisibility = .detailOnly }
                     .padding(.top, 28)
+                    .overlay(alignment: .top) {
+                        AshWindowDragArea().padding(.leading, 76).frame(height: 28)
+                    }
                     .background(AshStyle.sidebar)
                     .frame(minWidth: 210, idealWidth: 232, maxWidth: 300, maxHeight: .infinity)
                     .ignoresSafeArea(.container, edges: .top)
@@ -31,6 +34,7 @@ struct ContentView: View {
         }
         .ignoresSafeArea(.container, edges: .top)
         .background(AshStyle.canvas)
+        .background(AshWindowMovementPolicy())
         .navigationTitle(store.selectedWorkspace?.name ?? "Ash")
         .tint(ashAccent)
         .sheet(isPresented: $store.showNewWorkspace) { WorkspaceSheet() }

@@ -40,7 +40,7 @@ jobs:
         run: swift test
       - name: Standalone model checks
         run: |
-          for check in ModelChecks TerminalEnvironmentChecks ChecklistChecks SidePanelChecks DirectorySuggestionsChecks; do
+          for check in ModelChecks TerminalLayoutChecks TerminalGroupChecks TerminalEnvironmentChecks ChecklistChecks SidePanelChecks DirectorySuggestionsChecks; do
             scripts/swift-check.sh "$check"
             ".build/$check"
           done

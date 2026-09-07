@@ -21,7 +21,7 @@ struct AuthenticationSheet: View {
                 spec: LaunchSpec(
                     executable: "/usr/bin/ssh", arguments: RuntimeClient.sshOptions + ["-tt", host.address]),
                 fontSize: 13
-            ).background(terminalBackground)
+            )
         }.background(AshStyle.canvas).frame(width: 850, height: 550)
             .onDisappear {
                 TerminalRegistry.shared.close(sessionID)

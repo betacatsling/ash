@@ -7,7 +7,7 @@ fi
 source scripts/rust-toolchain.sh
 "$CARGO" test --locked --manifest-path runtime/Cargo.toml
 "$CARGO" build --locked --manifest-path runtime/Cargo.toml
-for check in ModelChecks TerminalEnvironmentChecks ChecklistChecks SidePanelChecks TerminalTabChecks AppStoreChecks HostManagementChecks DirectorySuggestionsChecks; do
+for check in ModelChecks TerminalLayoutChecks TerminalGroupChecks TerminalEnvironmentChecks ChecklistChecks SidePanelChecks TerminalTabChecks AppStoreChecks HostManagementChecks DirectorySuggestionsChecks; do
   scripts/swift-check.sh "$check"
   ".build/$check"
 done

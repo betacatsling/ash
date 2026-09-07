@@ -195,3 +195,18 @@ AgentAdapter 声明并实现：
 ## v0.1 实现落地
 
 第一版已经在此仓库实现。上文是目标架构；当前版本采用 tmux 内的独立 worker 和单请求 JSON 控制协议，具体能力与分期差异以 [v0.1 实现说明](v0.1-implementation.md) 为准。构建和使用入口见 [README](../README.md)。
+
+## macOS 客户端代码入口
+
+| 文件 | 职责 |
+| --- | --- |
+| `Models.swift` | 会话、主机和工作区的数据结构 |
+| `Workspace+TerminalTabs.swift` | 标签分组、旧布局迁移、成员移动与焦点状态 |
+| `TerminalLayout.swift` / `TerminalSplitGeometry.swift` | 布局树和分屏尺寸计算，不依赖界面 |
+| `AppStore+TerminalTabs.swift` | 标签操作与保存、关闭会话的衔接 |
+| `TerminalPointerView.swift` / `WindowDragging.swift` | 原生鼠标序列与窗口移动范围 |
+| `TerminalDragState.swift` | 拖动来源、落点判断和完成反馈 |
+| `TerminalTabItem.swift` / `TerminalDragPreview.swift` | 标签显示、组内成员和拖动预览 |
+| `TerminalSplitWorkspace.swift` | 按布局显示终端与分隔线 |
+
+每个会话只出现在一个标签页中。移动成员复用原终端视图与进程；从组合页拖到标签栏空白处只改变分组，不关闭会话。窗口拖动区域和终端标签的鼠标命中范围分开，终端尺寸变更不参与标签动画。

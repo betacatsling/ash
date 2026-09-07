@@ -175,7 +175,9 @@ import SwiftUI
             return nil
         }
         if let title = shortcut.reservedAction { return "\(shortcut.label) 已用于「\(title)」。请换一组按键。" }
-        if let other = TerminalShortcutAction.allCases.first(where: { $0 != action && self.shortcut(for: $0) == shortcut }) {
+        if let other = TerminalShortcutAction.allCases.first(where: {
+            $0 != action && self.shortcut(for: $0) == shortcut
+        }) {
             return "\(shortcut.label) 已用于「\(other.settingsTitle)」。请换一组按键。"
         }
         terminalShortcuts[action.rawValue] = shortcut
@@ -188,17 +190,16 @@ import SwiftUI
     }
     func canSelectTerminal(_ action: TerminalShortcutAction) -> Bool {
         guard !showSettings, !showNewWorkspace, !showNewTask, !showHosts,
-            terminalRenameTarget == nil, error == nil else { return false }
-        return action.index.map { workspaceRuns.indices.contains($0) } ?? (workspaceRuns.count > 1)
+            terminalRenameTarget == nil, error == nil
+        else { return false }
+        return action.index.map { workspaceTabs.indices.contains($0) } ?? (workspaceTabs.count > 1)
     }
     func selectTerminal(_ action: TerminalShortcutAction) {
         guard canSelectTerminal(action) else { return }
-        let available = workspaceRuns
-        let current = available.firstIndex { $0.id == selectedRun?.id } ?? 0
-        let index = action.index ?? ((current + (action == .previous ? -1 : 1) + available.count) % available.count)
-        let run = available[index]
-        selectRun(run)
-        DispatchQueue.main.async { TerminalRegistry.shared.focus(id: run.id) }
+        let tabs = workspaceTabs
+        let current = tabs.firstIndex { $0.id == selectedTerminalTab?.id } ?? 0
+        let index = action.index ?? ((current + (action == .previous ? -1 : 1) + tabs.count) % tabs.count)
+        selectTerminalTab(tabs[index])
     }
 
     var canCloseSelectedTerminal: Bool {
@@ -206,14 +207,17 @@ import SwiftUI
             terminalRenameTarget == nil, error == nil,
             NSApp?.modalWindow == nil, NSApp?.keyWindow?.sheetParent == nil,
             NSApp?.mainWindow?.attachedSheet == nil,
-            let run = selectedRun else { return false }
+            let run = selectedRun
+        else { return false }
         return !closingRunIDs.contains(run.id)
+            && !(selectedTerminalTab?.runIDs.contains(where: { closingRunIDs.contains($0) }) ?? false)
     }
 
     /// Stop first, then archive. A failed stop must never make a live session disappear.
     func closeTerminal(_ run: Run) async {
         guard let workspace = workspaces.first(where: { $0.id == run.workspaceId }),
-            closingRunIDs.insert(run.id).inserted else { return }
+            closingRunIDs.insert(run.id).inserted
+        else { return }
         defer { closingRunIDs.remove(run.id) }
         let host = host(for: workspace.hostID)
         do {
@@ -223,17 +227,11 @@ import SwiftUI
                 if let i = runs[host.id]?.firstIndex(where: { $0.id == run.id }) { runs[host.id]?[i] = stopped }
                 let _: Run = try await client.call(host, "archive", ["id": run.id])
             }
-            guard let i = workspaces.firstIndex(where: { $0.id == workspace.id && $0.hostID == host.id }) else { return }
+            guard let i = workspaces.firstIndex(where: { $0.id == workspace.id && $0.hostID == host.id }) else {
+                return
+            }
             let available = availableRuns(in: workspaces[i]).map(\.id)
-            let oldIndex = available.firstIndex(of: run.id) ?? 0
-            let remaining = available.filter { $0 != run.id }
-            let selected = workspaces[i].selectedRunID
-            var panes = workspaces[i].visibleRunIDs(available: available).filter { $0 != run.id }
-            let neighbor = remaining.isEmpty ? nil : remaining[min(oldIndex, remaining.count - 1)]
-            if panes.isEmpty, let neighbor { panes = [neighbor] }
-            // Keep other split panes in place; focus the nearest surviving visible pane.
-            let focus = selected == run.id ? (panes.contains(neighbor ?? "") ? neighbor : panes.first) : selected
-            workspaces[i].setPanes(panes, focused: focus)
+            workspaces[i].removeTerminal(run.id, available: available)
             runs[host.id]?.removeAll { $0.id == run.id }
             TerminalRegistry.shared.close(run.id)
             save()
@@ -399,33 +397,6 @@ import SwiftUI
         if !automatic { attachmentRetry.reset(run.id) }
         TerminalRegistry.shared.close(run.id)
         terminalGeneration[run.id, default: 0] += 1
-    }
-    func toggleSplit() {
-        guard let i = workspaces.firstIndex(where: { $0.id == selectedWorkspaceID }), let selected = selectedRun else {
-            return
-        }
-        if visibleRuns.count > 1 {
-            workspaces[i].setPanes([selected.id], focused: selected.id)
-        } else if let other = workspaceRuns.first(where: { $0.id != selected.id }) {
-            workspaces[i].setPanes([selected.id, other.id], focused: selected.id)
-        }
-        save()
-    }
-    @discardableResult
-    func moveTerminal(_ drag: TerminalDrag, beside target: String, side: TerminalDropSide) -> Bool {
-        guard drag.workspaceID == selectedWorkspaceID,
-            let i = workspaces.firstIndex(where: { $0.id == drag.workspaceID }),
-            workspaces[i].moveTerminal(drag.runID, beside: target, side: side, available: workspaceRuns.map(\.id))
-        else { return false }
-        save()
-        return true
-    }
-    func hidePane(_ id: String) {
-        guard let i = workspaces.firstIndex(where: { $0.id == selectedWorkspaceID }), visibleRuns.count > 1 else {
-            return
-        }
-        workspaces[i].setPanes(visibleRuns.map(\.id).filter { $0 != id }, focused: selectedRun?.id)
-        save()
     }
     func export(_ run: Run) async {
         do {

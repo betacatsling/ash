@@ -31,7 +31,7 @@ struct TerminalPane: View {
                     isFocused: store.selectedRun?.id == run.id && !searching,
                     onFocus: { if store.selectedRun?.id != run.id { store.selectRun(run) } }
                 )
-                .id("\(run.id)-\(store.terminalGeneration[run.id] ?? 0)").background(terminalBackground)
+                .id("\(run.id)-\(store.terminalGeneration[run.id] ?? 0)")
             } else {
                 ContentUnavailableView("等待连接主机", systemImage: "network")
             }

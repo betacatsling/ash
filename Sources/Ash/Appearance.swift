@@ -12,7 +12,7 @@ enum AshStyle {
     static let hover = Color.primary.opacity(0.045)
     static let line = Color.primary.opacity(0.09)
     static let success = adaptive("success", light: 0x58725A, dark: 0x91AD8C)
-    static let toolbarHeight: CGFloat = 40
+    static let toolbarHeight: CGFloat = 32
     static let statusHeight: CGFloat = 28
     static let radius: CGFloat = 8
 
@@ -29,8 +29,6 @@ enum AshStyle {
 }
 
 let ashAccent = AshStyle.accent
-let terminalBackgroundColor = NSColor(red: 0.115, green: 0.122, blue: 0.12, alpha: 1)
-let terminalBackground = Color(nsColor: terminalBackgroundColor)
 
 struct AshHairline: View {
     var body: some View { Rectangle().fill(AshStyle.line).frame(height: 1).accessibilityHidden(true) }
@@ -50,10 +48,13 @@ private struct AshHover: ViewModifier {
     @Environment(\.isEnabled) private var enabled
     @State private var hovering = false
     let selected: Bool
+    var selectionOpacity: Double = 1
     func body(content: Content) -> some View {
         content.background {
             RoundedRectangle(cornerRadius: AshStyle.radius)
-                .fill(selected ? AshStyle.selection : hovering && enabled ? AshStyle.hover : .clear)
+                .fill(
+                    selected
+                        ? AshStyle.selection.opacity(selectionOpacity) : hovering && enabled ? AshStyle.hover : .clear)
         }.onHover { hovering = $0 }
     }
 }
@@ -65,9 +66,9 @@ extension View {
             .overlay(RoundedRectangle(cornerRadius: AshStyle.radius).strokeBorder(AshStyle.line))
     }
     func ashTab(selected: Bool) -> some View {
-        ashHover(selected: selected)
+        modifier(AshHover(selected: selected, selectionOpacity: 0.55))
             .overlay(alignment: .bottom) {
-                Capsule().fill(selected ? ashAccent : .clear).frame(height: 2).padding(.horizontal, 12)
+                Capsule().fill(selected ? ashAccent.opacity(0.8) : .clear).frame(height: 1).padding(.horizontal, 12)
             }
     }
 }

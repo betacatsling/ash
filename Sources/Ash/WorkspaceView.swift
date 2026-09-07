@@ -4,6 +4,8 @@ import SwiftUI
 struct WorkspaceView: View {
     @EnvironmentObject var store: AppStore
     @Binding var sidebarVisibility: NavigationSplitViewVisibility
+    @State private var tabContentWidth: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         VStack(spacing: 0) {
             tabs
@@ -58,73 +60,31 @@ struct WorkspaceView: View {
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 4) {
-                        ForEach(store.workspaceRuns) { run in
-                            let selected = store.selectedRun?.id == run.id
-                            let title = store.terminalTitle(run, hostID: store.selectedHost.id)
-                            HStack(spacing: 0) {
-                                Button {
-                                    store.selectRun(run)
-                                } label: {
-                                    HStack(spacing: 7) {
-                                        Image(systemName: run.symbol).font(.caption)
-                                        Text(title).font(.system(size: 12, weight: .medium))
-                                            .lineLimit(1).truncationMode(.middle).frame(maxWidth: 200)
-                                        if run.status == "queued" {
-                                            Image(systemName: "clock").font(.caption2)
-                                        } else {
-                                            Circle().fill(run.active ? AshStyle.success : Color.secondary.opacity(0.5))
-                                                .frame(width: 5, height: 5)
-                                        }
-                                    }
-                                    .padding(.leading, 15).padding(.trailing, 7).frame(height: AshStyle.toolbarHeight)
-                                    .contentShape(Rectangle())
-                                }.buttonStyle(.plain)
-                                    .simultaneousGesture(
-                                        TapGesture(count: 2).onEnded { store.beginRenamingTerminal(run) }
-                                    )
-                                    .accessibilityAddTraits(selected ? .isSelected : [])
-                                    .modifier(TerminalDragModifier(run: run))
-                                    .help("\(title)\n双击重命名；拖到另一个终端的左侧或右侧分屏")
-                                Button {
-                                    Task { await store.closeTerminal(run) }
-                                } label: {
-                                    Image(systemName: "xmark").font(.system(size: 10, weight: .semibold))
-                                        .frame(width: 24, height: 28).contentShape(Rectangle())
-                                }.buttonStyle(.plain)
-                                    .opacity(selected ? 1 : 0)
-                                    .allowsHitTesting(selected)
-                                    .accessibilityHidden(!selected)
-                                    .disabled(!selected || store.closingRunIDs.contains(run.id))
-                                    .help(run.active ? "关闭终端并停止会话，保留文件与记录" : "关闭终端，保留记录")
-                                    .accessibilityLabel("关闭终端：\(title)")
-                            }
-                            .padding(.trailing, 5).frame(height: AshStyle.toolbarHeight)
-                            .foregroundStyle(selected ? Color.primary : .secondary)
-                            .ashTab(selected: selected)
-                            .id(run.id)
-                            .contextMenu {
-                                Button("重命名…") { store.beginRenamingTerminal(run) }
-                                    .disabled(store.closingRunIDs.contains(run.id))
-                                Button("关闭终端") { Task { await store.closeTerminal(run) } }
-                                    .disabled(store.closingRunIDs.contains(run.id))
-                                Divider()
-                                Button("查找终端内容") {
-                                    store.selectRun(run)
-                                    DispatchQueue.main.async { store.terminalSearchRequest = UUID() }
-                                }
-                                if store.visibleRuns.count > 1,
-                                    store.visibleRuns.contains(where: { $0.id == run.id })
-                                {
-                                    Button("收起此分屏") { store.hidePane(run.id) }
-                                }
-                            }
+                        ForEach(store.workspaceTabs) { tab in
+                            TerminalTabItem(tab: tab).id(tab.id)
+                                .transition(.opacity.combined(with: .scale(scale: 0.86)))
+                        }
+                    }
+                    .animation(
+                        reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.84),
+                        value: store.workspaceTabs.map { $0.id + $0.runIDs.joined() }
+                    )
+                    .background {
+                        GeometryReader { geometry in
+                            Color.clear.preference(key: TerminalTabContentWidthKey.self, value: geometry.size.width)
                         }
                     }
                 }
-                .onChange(of: store.selectedRun?.id) { _, id in
+                .onPreferenceChange(TerminalTabContentWidthKey.self) { tabContentWidth = $0 }
+                .onChange(of: store.selectedTerminalTab?.id) { _, id in
                     if let id { proxy.scrollTo(id) }
                 }
             }
+            .frame(maxWidth: tabContentWidth)
+            .layoutPriority(1)
+            AshWindowDragArea().frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
+                .background(TerminalDetachDropTarget())
+                .layoutPriority(-1)
             Button {
                 Task { await store.startShell() }
             } label: {
@@ -145,9 +105,6 @@ struct WorkspaceView: View {
         .frame(height: AshStyle.toolbarHeight)
         .background(AshStyle.chrome)
         .clipped()
-        // Native terminal views should change at their final size, without
-        // inheriting an insertion or selection animation from a parent.
-        .transaction { $0.animation = nil }
     }
     func bottomBar(_ w: Workspace) -> some View {
         HStack(spacing: 12) {

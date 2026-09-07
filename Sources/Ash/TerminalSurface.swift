@@ -29,18 +29,24 @@ final class TerminalContainerView: NSView {
         let view: LocalProcessTerminalView
         var ended = false
         let startedAt = Date()
-        init(spec: LaunchSpec, fontSize: Double) {
+        private var colorScheme: ColorScheme?
+        init(spec: LaunchSpec, fontSize: Double, colorScheme: ColorScheme) {
             view = LocalProcessTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 500))
             super.init()
             view.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
-            view.nativeBackgroundColor = terminalBackgroundColor
-            view.nativeForegroundColor = NSColor(red: 0.89, green: 0.9, blue: 0.87, alpha: 1)
-            view.caretColor = NSColor(red: 0.88, green: 0.66, blue: 0.38, alpha: 1)
+            updateAppearance(colorScheme)
             view.processDelegate = self
             view.startProcess(
                 executable: spec.executable, args: spec.arguments,
-                environment: RuntimeClient.terminalEnvironment.map { "\($0.key)=\($0.value)" }, currentDirectory: spec.directory
+                environment: RuntimeClient.terminalEnvironment.map { "\($0.key)=\($0.value)" },
+                currentDirectory: spec.directory
             )
+        }
+        func updateAppearance(_ scheme: ColorScheme) {
+            // Polling must not overwrite colors set by terminal applications.
+            guard colorScheme != scheme else { return }
+            colorScheme = scheme
+            TerminalTheme.apply(scheme, to: view)
         }
         func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {}
         func setTerminalTitle(source: LocalProcessTerminalView, title: String) {}
@@ -48,9 +54,12 @@ final class TerminalContainerView: NSView {
         func processTerminated(source: TerminalView, exitCode: Int32?) { ended = true }
     }
     var entries: [String: Entry] = [:]
-    func view(id: String, spec: LaunchSpec, fontSize: Double) -> LocalProcessTerminalView {
-        if let entry = entries[id] { return entry.view }
-        let entry = Entry(spec: spec, fontSize: fontSize)
+    func view(id: String, spec: LaunchSpec, fontSize: Double, colorScheme: ColorScheme) -> LocalProcessTerminalView {
+        if let entry = entries[id] {
+            entry.updateAppearance(colorScheme)
+            return entry.view
+        }
+        let entry = Entry(spec: spec, fontSize: fontSize, colorScheme: colorScheme)
         entries[id] = entry
         return entry.view
     }
@@ -78,6 +87,7 @@ final class TerminalContainerView: NSView {
     func detachAll() { for key in Array(entries.keys) { close(key) } }
 }
 struct TerminalSurface: NSViewRepresentable {
+    @Environment(\.colorScheme) private var colorScheme
     let id: String
     let spec: LaunchSpec
     let fontSize: Double
@@ -87,7 +97,9 @@ struct TerminalSurface: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> TerminalContainerView {
         let container = TerminalContainerView()
-        let view = TerminalRegistry.shared.view(id: id, spec: spec, fontSize: fontSize)
+        container.wantsLayer = true
+        container.layer?.backgroundColor = TerminalTheme.background(for: colorScheme).cgColor
+        let view = TerminalRegistry.shared.view(id: id, spec: spec, fontSize: fontSize, colorScheme: colorScheme)
         view.removeFromSuperview()
         view.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(view)
@@ -100,7 +112,10 @@ struct TerminalSurface: NSViewRepresentable {
         return container
     }
     func updateNSView(_ nsView: TerminalContainerView, context: Context) {
-        guard let view = TerminalRegistry.shared.entries[id]?.view else { return }
+        guard let entry = TerminalRegistry.shared.entries[id] else { return }
+        entry.updateAppearance(colorScheme)
+        nsView.layer?.backgroundColor = TerminalTheme.background(for: colorScheme).cgColor
+        let view = entry.view
         nsView.onFocus = onFocus
         let shouldFocus = isFocused && !context.coordinator.wasFocused
         context.coordinator.wasFocused = isFocused

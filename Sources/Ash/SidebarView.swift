@@ -77,7 +77,10 @@ struct SidebarView: View {
                     width: 6, height: 6)
                 Text(store.activeCount > 0 ? "\(store.activeCount) 个 Agent 会话运行中" : "准备就绪").font(.caption)
                 Spacer()
-                Text("v0.1.2").font(.caption2).foregroundStyle(.tertiary)
+                Text(
+                    (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String).map { "v\($0)" }
+                        ?? "dev"
+                ).font(.caption2).foregroundStyle(.tertiary)
             }.foregroundStyle(.secondary).padding(.horizontal, 20).padding(.vertical, 16)
         }.background(AshStyle.sidebar)
     }
